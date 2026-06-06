@@ -1,0 +1,194 @@
+/* ============================================================
+   Peter Markdown — CSS 变量与主题系统
+   ============================================================ */
+
+:root {
+  /* ========== 亮色主题 (默认) ========== */
+
+  /* 背景色 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f8f8;
+  --bg-tertiary: #f0f0f0;
+  --bg-hover: #f5f5f5;
+  --bg-active: #e8e8e8;
+  --bg-selection: #d6e8ff;
+  --bg-mask: rgba(0, 0, 0, 0.3);
+
+  /* 文字色 */
+  --text-primary: #333333;
+  --text-secondary: #555555;
+  --text-tertiary: #999999;
+  --text-link: #4183c4;
+  --text-code: #e96900;
+  --text-heading: #222222;
+
+  /* 边框 */
+  --border-primary: #e8e8e8;
+  --border-secondary: #f0f0f0;
+
+  /* 滚动条 */
+  --scrollbar-bg: transparent;
+  --scrollbar-thumb: #c1c1c1;
+  --scrollbar-thumb-hover: #a1a1a1;
+
+  /* 阴影 */
+  --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-sidebar: 1px 0 4px rgba(0, 0, 0, 0.06);
+
+  /* 编辑区 */
+  --editor-max-width: 860px;
+  --editor-font-size: 16px;
+  --editor-line-height: 1.6;
+  --editor-padding-y: 32px;
+  --editor-padding-x: 40px;
+
+  /* 侧边栏 */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 0px;
+  --sidebar-font-size: 14px;
+
+  /* 标题栏 */
+  --titlebar-height: 38px;
+
+  /* 状态栏 */
+  --statusbar-height: 24px;
+  --statusbar-font-size: 12px;
+
+  /* 大纲面板 */
+  --toc-width: 260px;
+
+  /* 字体 */
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC',
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-body: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Source Code Pro', 'Fira Code', 'Consolas',
+    'Noto Sans Mono', monospace;
+  --font-heading: 'Noto Sans SC', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* 过渡 */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* ========== 暗色主题 ========== */
+[data-theme='dark'] {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252525;
+  --bg-tertiary: #2d2d2d;
+  --bg-hover: #333333;
+  --bg-active: #3a3a3a;
+  --bg-selection: #264f78;
+  --bg-mask: rgba(0, 0, 0, 0.5);
+
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --text-tertiary: #6e7681;
+  --text-link: #58a6ff;
+  --text-code: #ffa657;
+  --text-heading: #e6edf3;
+
+  --border-primary: #30363d;
+  --border-secondary: #21262d;
+
+  --scrollbar-thumb: #484848;
+  --scrollbar-thumb-hover: #585858;
+
+  --shadow-panel: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-sidebar: 1px 0 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ========== 全局重置 ========== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========== 滚动条 ========== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ========== 选中文本 ========== */
+::selection {
+  background: var(--bg-selection);
+}
+
+/* ========== 焦点轮廓 ========== */
+:focus-visible {
+  outline: 2px solid var(--text-link);
+  outline-offset: 2px;
+}
+
+/* ========== 按钮重置 ========== */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ========== 输入框重置 ========== */
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+/* ========== 链接重置 ========== */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ========== 列表重置 ========== */
+ul,
+ol {
+  list-style: none;
+}
