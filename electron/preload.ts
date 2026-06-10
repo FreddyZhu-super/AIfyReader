@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
   openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  getPlatform: () => process.platform,
   onFilesOpened: (callback: (paths: string[]) => void) => {
     ipcRenderer.on('files-opened', (_event, paths) => callback(paths))
   },

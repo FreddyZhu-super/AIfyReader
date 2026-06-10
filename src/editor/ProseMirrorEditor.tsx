@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react'
+import React, { useRef, useEffect } from 'react'
 import { EditorView } from 'prosemirror-view'
 import { EditorState } from 'prosemirror-state'
 import { schema } from './schema'
@@ -7,45 +7,74 @@ import { buildInputRules } from './plugins/inputRules'
 import { history, redo, undo } from 'prosemirror-history'
 import { keymap } from 'prosemirror-keymap'
 import { baseKeymap } from 'prosemirror-commands'
-import { MarkdownParser } from '../parser/markdownParser'
+import { defaultMarkdownParser, MarkdownParser } from 'prosemirror-markdown'
+import { serializeToMarkdown } from './markdownSerializer'
+
+export interface TocEntry {
+  level: number
+  text: string
+  anchor: string
+  position: number
+}
 
 interface ProseMirrorEditorProps {
   content: string
   editable?: boolean
-  onChange?: (html: string) => void
+  onMarkdownChange?: (markdown: string) => void
   onSelectionChange?: (line: number, col: number) => void
-  parser?: MarkdownParser
+  onSave?: () => void
+  onTocChange?: (toc: TocEntry[]) => void
 }
 
 export function ProseMirrorEditor({
   content,
   editable = true,
-  onChange,
+  onMarkdownChange,
   onSelectionChange,
-  parser
+  onSave,
+  onTocChange
 }: ProseMirrorEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const isInternalChangeRef = useRef(false)
+  const onMarkdownChangeRef = useRef(onMarkdownChange)
+  const onSaveRef = useRef(onSave)
+  const onTocChangeRef = useRef(onTocChange)
 
+  useEffect(() => {
+    onMarkdownChangeRef.current = onMarkdownChange
+  }, [onMarkdownChange])
+
+  useEffect(() => {
+    onSaveRef.current = onSave
+  }, [onSave])
+
+  useEffect(() => {
+    onTocChangeRef.current = onTocChange
+  }, [onTocChange])
+
+  // Create editor on mount
   useEffect(() => {
     if (!editorRef.current) return
 
-    // Create the ProseMirror state
     const state = EditorState.create({
       schema,
       plugins: [
         history(),
-        keymap(buildKeymap(schema)),
+        buildKeymap(schema),
         keymap(baseKeymap),
         buildInputRules(schema),
-        // Selection change listener
         keymap({
-          // Track cursor movement
+          'Mod-s': () => {
+            onSaveRef.current?.()
+            return true
+          },
+          'Mod-z': undo,
+          'Shift-Mod-z': redo
         })
       ]
     })
 
-    // Create the editor view
     const view = new EditorView(editorRef.current, {
       state,
       editable: () => editable,
@@ -53,17 +82,21 @@ export function ProseMirrorEditor({
         const newState = view.state.apply(tr)
         view.updateState(newState)
 
-        if (onChange && tr.docChanged) {
-          const html = getHtmlContent(view)
-          onChange(html)
+        if (tr.docChanged && !isInternalChangeRef.current) {
+          if (onMarkdownChangeRef.current) {
+            const md = serializeToMarkdown(newState.doc)
+            onMarkdownChangeRef.current(md)
+          }
+          if (onTocChangeRef.current) {
+            const toc = extractToc(newState.doc)
+            onTocChangeRef.current(toc)
+          }
         }
 
         if (onSelectionChange && tr.selectionSet) {
-          const { from } = view.state.selection
-          const doc = view.state.doc
-          const line = doc ? doc.resolve(from).parentOffset : 0
-          const col = from - (doc ? doc.resolve(from).start() : 0)
-          onSelectionChange(line, col)
+          const { from } = newState.selection
+          const $from = newState.doc.resolve(from)
+          onSelectionChange($from.parentOffset + 1, from - $from.start() + 1)
         }
       }
     })
@@ -74,31 +107,49 @@ export function ProseMirrorEditor({
       view.destroy()
       viewRef.current = null
     }
-  }, []) // Only mount once
+  }, [])
 
   // Update editable state
   useEffect(() => {
     if (viewRef.current) {
-      viewRef.current.setProps({
-        editable: () => editable
-      })
+      viewRef.current.setProps({ editable: () => editable })
     }
   }, [editable])
 
   // Update content when it changes externally
   useEffect(() => {
-    if (!viewRef.current || !parser) return
+    if (!viewRef.current) return
+    if (isInternalChangeRef.current) return
+
+    const view = viewRef.current
+    const currentMd = serializeToMarkdown(view.state.doc)
+
+    if (content === currentMd) return
 
     try {
-      const parsed = parser.parse(content)
-      // In real implementation: use prosemirror-markdown to parse
-      // For now, we set HTML directly
-      const { EditorState } = require('prosemirror-state')
-      // TODO: use proper PM → Markdown parsing
+      const mdParser = new MarkdownParser(
+        schema,
+        defaultMarkdownParser.tokenizer,
+        defaultMarkdownParser.tokens
+      )
+      const doc = mdParser.parse(content) || schema.nodes.doc.createAndFill()!
+      const state = EditorState.create({
+        schema,
+        doc,
+        plugins: view.state.plugins
+      })
+      isInternalChangeRef.current = true
+      view.updateState(state)
+      isInternalChangeRef.current = false
+
+      if (onTocChangeRef.current) {
+        const toc = extractToc(doc)
+        onTocChangeRef.current(toc)
+      }
     } catch {
-      // Content might not be parsable yet
+      // If parsing fails, don't update
     }
-  }, [content, parser])
+  }, [content])
 
   return (
     <div
@@ -109,14 +160,33 @@ export function ProseMirrorEditor({
   )
 }
 
-function getHtmlContent(view: EditorView): string {
-  // Serialize ProseMirror doc to HTML
-  const fragment = view.dom
-  return fragment.innerHTML
+function extractToc(doc: ReturnType<typeof schema.nodeFromJSON>): TocEntry[] {
+  const headings: TocEntry[] = []
+  let position = 0
+
+  doc.descendants((node) => {
+    if (node.type.name === 'heading') {
+      const text = node.textContent || ''
+      const anchor = text
+        .toLowerCase()
+        .replace(/[^\w一-鿿\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || `heading-${position}`
+
+      headings.push({
+        level: node.attrs.level,
+        text,
+        anchor,
+        position: position++
+      })
+    }
+    return true
+  })
+
+  return headings
 }
 
-// Helper to set content programmatically
-export function setEditorContent(view: EditorView, html: string) {
-  const { EditorState } = require('prosemirror-state')
-  // TODO: parse HTML to ProseMirror nodes
-}
+// Re-export for external use
+export { serializeToMarkdown } from './markdownSerializer'
+export { schema } from './schema'
